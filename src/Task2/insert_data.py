@@ -6,17 +6,18 @@ from multiprocessing import Pool, cpu_count
 # Function to insert data into MongoDB
 def insert_data(data_chunk):
     client = MongoClient('mongodb://localhost:27017/')
-    db = client['mydatabase']
+    db = client['sea']
     collection = db['vessels']
-    collection.insert_many(data_chunk)
-    print(f"Inserted {len(data_chunk)} records")
-
+    data_chunk_dict = data_chunk.to_dict('records')
+    collection.insert_many(data_chunk_dict)
+    print(f"Inserted {len(data_chunk_dict)} records")
+    client.close()
 
 def process_chunk(chunk):
     # Process each chunk as needed
     # For example, you can filter, transform, or analyze the data
     # Here, I'm just printing the length of each chunk
-    print(len(chunk))
+    insert_data(chunk)
     # You can return the processed data if needed
 
 def read_csv_parallel(filename):
