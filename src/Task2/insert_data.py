@@ -23,7 +23,7 @@ def process_chunk(chunk):
     insert_data(chunk)
 
 def read_csv_parallel(filename):
-    num_cores = 6 #cpu_count()
+    num_cores = 5 #cpu_count()
 
     pool = Pool(num_cores)
 

@@ -1,25 +1,14 @@
 import pymongo
 
 
-client = pymongo.MongoClient("mongodb://localhost:27017")
+client = pymongo.MongoClient("mongodb://localhost:27141")
 
 db = client["sea"]
 
 collection = db["vessels"]
 
-
-pipeline = [
-    {
-        "$group": {
-            "_id": "$MMSI",
-            "count": {"$sum": 1},
-            "members": {"$push": "$$ROOT"}
-        }
-    }
-]
-
-result = collection.aggregate(pipeline)
-
+unique_MMSI = collection.distinct("MMSI") # this is needed since grouping query will exceed memory limit
+tmp = 1
 for group in result:
     mmsi_value = group["_id"]
     count = group["count"]

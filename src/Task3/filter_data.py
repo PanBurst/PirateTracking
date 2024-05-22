@@ -23,7 +23,7 @@ def include_document(document):
     return True
 
 def filter_data(skip_n: int, limit_n: int) -> tuple[dict[int, int], list[dict]]:
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient('mongodb://localhost:27141/')
     db = client['sea']
     collection = db['vessels']
     mmsi_instance_counts: dict[str, int] = {}
@@ -39,7 +39,7 @@ def filter_data(skip_n: int, limit_n: int) -> tuple[dict[int, int], list[dict]]:
     return (mmsi_instance_counts, filtered_data)
 
 def insert_data(documents: list, valid_mmsi_instances: set[int]):
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient('mongodb://localhost:27141/')
     db = client['sea']
     collection = db['filtered_vessels']
 
@@ -52,16 +52,16 @@ def insert_data(documents: list, valid_mmsi_instances: set[int]):
     client.close()
 
 def filter_data_paralel():
-    num_cores = 4
+    num_cores = 6
     pool = Pool(num_cores)
 
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient('mongodb://localhost:27141/')
     db = client['sea']
     collection = db['vessels']
-    # total_document_count = collection.count_documents({})
-    total_document_count = 3000000
+    total_document_count = collection.count_documents({})
+    # total_document_count = 3000000
 
-    chunk_size = math.ceil(total_document_count / num_cores)
+    chunk_size = 100_000#math.ceil(total_document_count / num_cores)
 
     pending_results = []
     for i in range(num_cores):
