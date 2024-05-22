@@ -58,13 +58,13 @@ def filter_data_paralel():
     client = MongoClient('mongodb://localhost:27141/')
     db = client['sea']
     collection = db['vessels']
-    total_document_count = collection.count_documents({})
-    # total_document_count = 3000000
 
-    chunk_size = 100_000#math.ceil(total_document_count / num_cores)
+    total_document_count = collection.count_documents({})
+    chunk_size = 100000
+    chunk_count = math.ceil(total_document_count / chunk_size)
 
     pending_results = []
-    for i in range(num_cores):
+    for i in range(chunk_count):
         skip_n = i * chunk_size
         limit_n = min((i+1) * chunk_size, total_document_count) - skip_n
         pending_result = pool.apply_async(filter_data, (skip_n, limit_n))
