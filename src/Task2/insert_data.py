@@ -1,11 +1,17 @@
 import pandas as pd
 from pymongo import MongoClient
-import threading
 from multiprocessing import Pool, cpu_count
+from tqdm import tqdm
+from functools import partial
 
-# Function to insert data into MongoDB
+def create_client() -> MongoClient:
+    return MongoClient('mongodb://localhost:27141/')
+
+
+
 def insert_data(data_chunk):
-    client = MongoClient('mongodb://localhost:27017/')
+
+    client = create_client()
     db = client['sea']
     collection = db['vessels']
     data_chunk_dict = data_chunk.to_dict('records')
@@ -14,29 +20,20 @@ def insert_data(data_chunk):
     client.close()
 
 def process_chunk(chunk):
-    # Process each chunk as needed
-    # For example, you can filter, transform, or analyze the data
-    # Here, I'm just printing the length of each chunk
     insert_data(chunk)
-    # You can return the processed data if needed
 
 def read_csv_parallel(filename):
-    # Determine the number of CPU cores available
-    num_cores = cpu_count()
+    num_cores = 6 #cpu_count()
 
-    # Create a multiprocessing Pool
     pool = Pool(num_cores)
 
-    # Read the CSV file in chunks
-    chunks = pd.read_csv(filename, chunksize=10000)  # Adjust chunksize as needed
-
-    # Apply the process_chunk function to each chunk in parallel
+    chunks = pd.read_csv(filename, chunksize=100000)
     pool.map(process_chunk, chunks)
 
-    # Close the pool to release resources
     pool.close()
     pool.join()
 
 if __name__ == "__main__":
-    # Replace 'filename.csv' with the path to your CSV file
+    print("Starting CSV reading and insertion into MongoDB...")
     read_csv_parallel(r'.\data\dataset\dataset.csv')
+    print("CSV reading and insertion into MongoDB completed.")
