@@ -1,29 +1,81 @@
-import cartopy.crs as ccrs
-import matplotlib.pyplot as plt
-from cartopy.io import img_tiles
+import pandas as pd
+import numpy as np
+from pymongo import MongoClient
+from multiprocessing import Pool, Manager, Lock
+import math
+from tqdm import tqdm
+from functools import partial
 
-# Create a map with satellite imagery
-plt.figure(figsize=(10, 5))
-ax = plt.axes(projection=ccrs.PlateCarree())
+def include_document(document):
+    if math.isnan(document["MMSI"]):
+        return False
+    if document["Navigational status"] == "Unknown value":
+        return False
+    if math.isnan(document["Latitude"]):
+        return False
+    if math.isnan(document["Longitude"]):
+        return False
+    if math.isnan(document["ROT"]):
+        return False
+    if math.isnan(document["SOG"]):
+        return False
+    if math.isnan(document["COG"]):
+        return False
+    if math.isnan(document["Heading"]):
+        return False
+    return True
 
-# Add satellite imagery (Google Tiles)
-google_tiles = img_tiles.GoogleTiles()
-ax.add_image(google_tiles, 6)  # 6 is the zoom level, you can adjust it as needed
+def filter_data(skip_n: int, limit_n: int) -> tuple[dict[int, int], list[dict]]:
+    client = MongoClient('mongodb://localhost:27141/')
+    db = client['sea']
+    collection = db['vessels']
+    mmsi_instance_counts: dict[str, int] = {}
+    filtered_data = []
+    cursor = collection.find({}).skip(skip_n).limit(limit_n)
+    for document in cursor:
+        if include_document(document):
+            mmsi = document['MMSI']
+            mmsi_instance_counts[mmsi] = mmsi_instance_counts.get(mmsi, 0) + 1
+            filtered_data.append(document)
 
-# Set the extent of the map
-ax.set_extent([-125, -65, 20, 50], crs=ccrs.PlateCarree())
+    client.close()
+    return (mmsi_instance_counts, filtered_data)
 
-# Add coastlines
-ax.coastlines()
+def process_chunk(lock, list, chunk_range: tuple[int, int]) -> list[dict]:
+    _, results = filter_data(chunk_range[0], chunk_range[1])
+    with lock:
+        list.extend(results)
+        print(len(list))
 
-# Plot a point
-lat, lon = 37.7749, -122.4194  # San Francisco
-plt.plot(lon, lat, 'ro', markersize=8, label='San Francisco')
-plt.text(lon, lat, 'San Francisco', fontsize=10, va='bottom', ha='center')
 
-# Set title and legend
-plt.title('Map of San Francisco with Satellite Imagery')
-plt.legend()
 
-# Show the map
-plt.show()
+def safe_append(lock, shared_list, data):
+    with lock:
+        shared_list.extend(data)
+
+def filter_database():
+    manager = Manager()
+    shared_list = manager.list()
+    lock = manager.Lock()
+
+    client = MongoClient('mongodb://localhost:27141/')
+    db = client['sea']
+    collection = db['vessels']
+    total_document_count = collection.count_documents({})
+    client.close()
+
+    chunk_size = 100_000
+    chunk_ranges = [(i, min(i + chunk_size, total_document_count)) for i in range(0, total_document_count, chunk_size)]
+    partial_process_chunk = partial(process_chunk, lock, shared_list)
+    with Pool(processes=6) as pool:
+        pool.map(partial_process_chunk, chunk_ranges)
+        
+        pool.close()
+        pool.join()
+
+    return shared_list
+
+if __name__ == '__main__':
+    # Process the database in chunks
+    processed_data = filter_database()
+    tmp = 1
