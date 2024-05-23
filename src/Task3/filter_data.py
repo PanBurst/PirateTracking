@@ -46,8 +46,9 @@ def insert_valid_documents(db: Database, vessels_view: Collection, valid_mmsi_id
     vessels_view.aggregate(insert_valid_documents_query)
     return db["filtered_vessels"]
 
-def filter_data_paralel():
-    client = MongoClient('mongodb://localhost:27017/')
+
+def filter_data():
+    client = MongoClient('mongodb://localhost:27141/')
     db = client['sea']
     db['vessels'].create_index("MMSI")
 
@@ -83,4 +84,4 @@ def filter_data_paralel():
     client.close()
 
 if __name__ == "__main__":
-    filter_data_paralel()
+    filter_data()
