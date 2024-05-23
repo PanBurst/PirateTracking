@@ -1,92 +1,87 @@
-import math
-import numpy as np
+import pip
 from pymongo import MongoClient
-from multiprocessing import Pool, cpu_count
+from pymongo.collection import Collection
+from pymongo.database import Database
+import math
 
-def include_document(document):
-    if math.isnan(document["MMSI"]):
-        return False
-    if document["Navigational status"] == "Unknown value":
-        return False
-    if math.isnan(document["Latitude"]):
-        return False
-    if math.isnan(document["Longitude"]):
-        return False
-    if math.isnan(document["ROT"]):
-        return False
-    if math.isnan(document["SOG"]):
-        return False
-    if math.isnan(document["COG"]):
-        return False
-    if math.isnan(document["Heading"]):
-        return False
-    return True
+VALID_DOCUMENT_COUNT = 100
 
-def filter_data(skip_n: int, limit_n: int) -> tuple[dict[int, int], list[dict]]:
-    client = MongoClient('mongodb://localhost:27017/')
-    db = client['sea']
-    collection = db['vessels']
-    mmsi_instance_counts: dict[str, int] = {}
-    filtered_data = []
-    cursor = collection.find({}).skip(skip_n).limit(limit_n)
-    for document in cursor:
-        if include_document(document) == True:
-            mmsi = document['MMSI']
-            mmsi_instance_counts[mmsi] = mmsi_instance_counts.get(mmsi, 0) + 1
-            filtered_data.append(document)
+def create_filtered_vessels_view(db: Database, filter_query) -> Collection:
+    db.drop_collection("vessels_view")
+    vessels_view = db.create_collection(
+        "vessels_view",
+        viewOn="vessels",
+        pipeline=filter_query
+    )
 
-    client.close()
-    return (mmsi_instance_counts, filtered_data)
+    return vessels_view
 
-def insert_data(documents: list, valid_mmsi_instances: set[int]):
-    client = MongoClient('mongodb://localhost:27017/')
-    db = client['sea']
-    collection = db['filtered_vessels']
 
-    filtered_documents = []
-    for document in documents:
-        if document['MMSI'] in valid_mmsi_instances:
-            filtered_documents.append(document)
+def get_valid_mmsi_ids(vessels_view: Collection) -> list[int]:
+    group_by_mmsi_query = [
+        {
+            "$group": {
+                "_id": "$MMSI",
+                "count": {"$sum": 1}
+            }
+        }
+    ]
+    mmsi_groups = vessels_view.aggregate(group_by_mmsi_query)
 
-    collection.insert_many(filtered_documents)
-    client.close()
+    return [mmsi_group["_id"] for mmsi_group in mmsi_groups if mmsi_group["count"] >= VALID_DOCUMENT_COUNT]
+
+
+def insert_valid_documents(db: Database, vessels_view: Collection, valid_mmsi_ids: list[int]) -> Collection:
+    insert_valid_documents_query = [
+        {
+            "$match": {
+                "MMSI": {"$in": valid_mmsi_ids}
+            }
+        },
+        {
+            "$out": "filtered_vessels"
+        }
+    ]
+
+    db.drop_collection("filtered_vessels")
+    vessels_view.aggregate(insert_valid_documents_query)
+    return db["filtered_vessels"]
 
 def filter_data_paralel():
-    num_cores = 4
-    pool = Pool(num_cores)
-
     client = MongoClient('mongodb://localhost:27017/')
     db = client['sea']
-    collection = db['vessels']
+    db['vessels'].create_index("MMSI")
 
-    total_document_count = collection.count_documents({})
-    chunk_size = 100000
-    chunk_count = math.ceil(total_document_count / chunk_size)
+    print("Creating filtered vessels view...")
+    filter_query = [
+        {
+            "$match": {
+                "$and": [
+                    {"MMSI": {"$ne": math.nan}},
+                    {"Heading": {"$ne": math.nan}},
+                    {"Navigational status": {"$ne": "Unknown value", "$ne": math.nan}},
+                    {"Latitude": {"$ne": math.nan}},
+                    {"Longitude": {"$ne": math.nan}},
+                    {"ROT": {"$ne": math.nan}},
+                    {"SOG": {"$ne": math.nan}},
+                    {"COG": {"$ne": math.nan}},
+                    {"Heading": {"$ne": math.nan}}
+                ]
+            }
+        }
+    ]
+    vessels_view = create_filtered_vessels_view(db, filter_query)
+    print("Filtered vessels view created.")
 
-    pending_results = []
-    for i in range(chunk_count):
-        skip_n = i * chunk_size
-        limit_n = min((i+1) * chunk_size, total_document_count) - skip_n
-        pending_result = pool.apply_async(filter_data, (skip_n, limit_n))
-        pending_results.append(pending_result)
+    print("Getting valid MMSI IDs...")
+    valid_mmsi_ids = get_valid_mmsi_ids(vessels_view)
+    print("Valid MMSI IDs obtained.")
 
-    results: list[tuple[dict[int, int], list[dict]]] = [pending_result.get() for pending_result in pending_results]
-
-    total_mmsi_instance_counts: dict[int, int] = {}
-    for (mmsi_instance_counts, _) in results:
-        for (mmsi_instance, count) in mmsi_instance_counts.items():
-            total_mmsi_instance_counts[mmsi_instance] = total_mmsi_instance_counts.get(mmsi_instance, 0) + count
-
-    valid_mmsi_instances: set[int] = set()
-    for (mmsi_instance, count) in total_mmsi_instance_counts.items():
-        if count >= 100:
-            valid_mmsi_instances.add(mmsi_instance)
+    print("Inserting valid documents...")
+    insert_valid_documents(db, vessels_view, valid_mmsi_ids)
+    print("Valid documents inserted.")
     
-    for (_, documents) in results:
-        pool.apply(insert_data, (documents, valid_mmsi_instances))
-
-    pool.close()
-    pool.join()
+    client.close()
 
 if __name__ == "__main__":
     filter_data_paralel()
