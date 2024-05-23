@@ -7,17 +7,37 @@ db = client["sea"]
 
 collection = db["vessels"]
 
-unique_MMSI = collection.distinct("MMSI") # this is needed since grouping query will exceed memory limit
-tmp = 1
-for group in result:
-    mmsi_value = group["_id"]
-    count = group["count"]
-    members = group["members"]
-    
-    print(f"MMSI: {mmsi_value}, Count: {count}")
-    print("Members of the group:")
-    for member in members:
-        print(member)
-        
+unique_MMSI = collection.distinct("MMSI") 
+
+pipeline = [
+    {
+        '$sort': {'MMSI': 1, '# Timestamp': 1}  # Sort by MMSI and Time ascending
+    },
+    {
+        '$group': {
+            '_id': '$MMSI',
+            'records': {
+                '$push': '$$ROOT'  # Push entire document to the records array
+            }
+        }
+    },
+    {
+        '$project': {
+            'MMSI': '$_id',
+            'records': {
+                '$slice': ['$records', 3]  # Take the first 3 records
+            }
+        }
+    },
+    {
+        '$unwind': '$records'  # Unwind the records array to get individual documents
+    },
+    {
+        '$replaceRoot': { 'newRoot': '$records' }  # Replace the root with the records documents
+    }
+]
+
+# Execute the aggregation
+result = list(collection.aggregate(pipeline))
 
 client.close()
