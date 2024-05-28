@@ -1,9 +1,11 @@
+import math
+
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
-import math
 
 VALID_DOCUMENT_COUNT = 100
+
 
 def create_filtered_vessels_view(db: Database, filter_query) -> Collection:
     db.drop_collection("vessels_view")
@@ -59,7 +61,8 @@ def filter_data():
                 "$and": [
                     {"MMSI": {"$ne": math.nan}},
                     {"Heading": {"$ne": math.nan}},
-                    {"Navigational status": {"$ne": "Unknown value", "$ne": math.nan}},
+                    {"Navigational status": {"$ne": "Unknown value"}},
+                    {"Navigational status": {"$ne": math.nan}},
                     {"Latitude": {"$ne": math.nan}},
                     {"Longitude": {"$ne": math.nan}},
                     {"ROT": {"$ne": math.nan}},
@@ -80,8 +83,9 @@ def filter_data():
     print("Inserting valid documents...")
     insert_valid_documents(db, vessels_view, valid_mmsi_ids)
     print("Valid documents inserted.")
-    
+
     client.close()
+
 
 if __name__ == "__main__":
     filter_data()
