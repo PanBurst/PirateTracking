@@ -1,68 +1,103 @@
-version: '3.8'
-
-networks:
-  mongo-shard-cluster:
-
 services:
   config-svr-1:
-    image: mongo:4.4
+    image: mongo:latest
     container_name: config-svr-1
     command: mongod --port 27017 --configsvr --replSet config-svr-replica-set
     ports:
       - "27101:27017"
+    restart: always
     networks:
       - mongo-shard-cluster
 
   config-svr-2:
-    image: mongo:4.4
+    image: mongo:latest
     container_name: config-svr-2
     command: mongod --port 27017 --configsvr --replSet config-svr-replica-set
     ports:
       - "27102:27017"
+    restart: always
+    networks:
+      - mongo-shard-cluster
+
+  config-svr-3:
+    image: mongo:latest
+    container_name: config-svr-3
+    command: mongod --port 27017 --configsvr --replSet config-svr-replica-set
+    ports:
+      - "27103:27017"
+    restart: always
     networks:
       - mongo-shard-cluster
 
   shard-1-node-a:
-    image: mongo:4.4
+    image: mongo:latest
     container_name: shard-1-node-a
     command: mongod --port 27017 --shardsvr --replSet shard-1-replica-set
     ports:
       - "27111:27017"
+    restart: always
     networks:
       - mongo-shard-cluster
 
   shard-1-node-b:
-    image: mongo:4.4
+    image: mongo:latest
     container_name: shard-1-node-b
     command: mongod --port 27017 --shardsvr --replSet shard-1-replica-set
     ports:
       - "27121:27017"
+    restart: always
+    networks:
+      - mongo-shard-cluster
+
+  shard-1-node-c:
+    image: mongo:latest
+    container_name: shard-1-node-c
+    command: mongod --port 27017 --shardsvr --replSet shard-1-replica-set
+    ports:
+      - "27131:27017"
+    restart: always
     networks:
       - mongo-shard-cluster
 
   shard-2-node-a:
-    image: mongo:4.4
+    image: mongo:latest
     container_name: shard-2-node-a
     command: mongod --port 27017 --shardsvr --replSet shard-2-replica-set
     ports:
       - "27112:27017"
+    restart: always
     networks:
       - mongo-shard-cluster
 
   shard-2-node-b:
-    image: mongo:4.4
+    image: mongo:latest
     container_name: shard-2-node-b
     command: mongod --port 27017 --shardsvr --replSet shard-2-replica-set
     ports:
       - "27122:27017"
+    restart: always
+    networks:
+      - mongo-shard-cluster
+
+  shard-2-node-c:
+    image: mongo:latest
+    container_name: shard-2-node-c
+    command: mongod --port 27017 --shardsvr --replSet shard-2-replica-set
+    ports:
+      - "27123:27017"
+    restart: always
     networks:
       - mongo-shard-cluster
 
   router:
-    image: mongo:4.4
+    image: mongo:latest
     container_name: router
-    command: mongos --port 27017 --configdb config-svr-replica-set/config-svr-1:27017,config-svr-2:27017 --bind_ip_all
+    command: mongos --port 27017 --configdb config-svr-replica-set/config-svr-1:27017,config-svr-2:27017,config-svr-3:27017 --bind_ip_all
     ports:
       - "27141:27017"
+    restart: always
     networks:
       - mongo-shard-cluster
+
+networks:
+  mongo-shard-cluster:
