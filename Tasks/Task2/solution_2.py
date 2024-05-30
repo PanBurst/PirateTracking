@@ -21,15 +21,16 @@ class InsertProcess(Process):
         while True:
             try:
                 chunk = self.data_queue.get(timeout=1)
+
+                if chunk is None:
+                    break
+
+                collection = client["sea"]["vessels"]
+                data_chunk_dict = chunk.to_dict("records")
+                collection.insert_many(data_chunk_dict)
+
             except Empty:
                 pass
-
-            if chunk is None:
-                break
-
-            collection = client["sea"]["vessels"]
-            data_chunk_dict = chunk.to_dict("records")
-            collection.insert_many(data_chunk_dict)
 
         client.close()
 
@@ -64,5 +65,5 @@ def insert_data_in_parallel(
 
 
 if __name__ == "__main__":
-    insert_data_in_parallel(r".\data\dataset\dataset.csv", max_workers=cpu_count() - 4)
+    insert_data_in_parallel(r".\data\dataset\dataset.csv", n_rows=1000000)
     print("Done.")

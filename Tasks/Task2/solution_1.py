@@ -33,5 +33,5 @@ def insert_data_in_parallel(
 
 
 if __name__ == "__main__":
-    insert_data_in_parallel(r".\data\dataset\dataset.csv", max_workers=cpu_count() - 4)
+    insert_data_in_parallel(r".\data\dataset\dataset.csv", n_rows=1000000)
     print("Done.")
