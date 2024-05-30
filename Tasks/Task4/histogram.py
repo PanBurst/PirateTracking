@@ -55,7 +55,7 @@ def calculate_sample_time_deltas(collection: Collection, mmsi_ranges: list[tuple
 
 def plot_histogram(delta_t: list[float]):
     plt.figure(figsize=(10, 6))
-    plt.hist(delta_t, bins=1000, edgecolor="black")
+    plt.hist(delta_t, bins=100, edgecolor="black")
     plt.title("Histogram of Time Differences (delta_t)")
     plt.xlabel("Time Difference (seconds)")
     plt.ylabel("Frequency")

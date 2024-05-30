@@ -61,14 +61,22 @@ def filter_data():
                 "$and": [
                     {"MMSI": {"$ne": math.nan}},
                     {"Heading": {"$ne": math.nan}},
-                    {"Navigational status": {"$ne": "Unknown value"}},
                     {"Navigational status": {"$ne": math.nan}},
                     {"Latitude": {"$ne": math.nan}},
                     {"Longitude": {"$ne": math.nan}},
                     {"ROT": {"$ne": math.nan}},
                     {"SOG": {"$ne": math.nan}},
                     {"COG": {"$ne": math.nan}},
-                    {"Heading": {"$ne": math.nan}}
+                    {"Heading": {"$ne": math.nan}},
+                    {"Name": {"$ne": math.nan}},
+                    {"Cargo type": {"$ne": math.nan}},
+                    {"Width": {"$ne": math.nan}},
+                    {"Length": {"$ne": math.nan}},
+                    {"Draught": {"$ne": math.nan}},
+                    {"Destination": {"$ne": math.nan}},
+                    {"ETA": {"$ne": math.nan}},
+                    {"A": {"$ne": math.nan}},
+                    {"B": {"$ne": math.nan}},
                 ]
             }
         }
